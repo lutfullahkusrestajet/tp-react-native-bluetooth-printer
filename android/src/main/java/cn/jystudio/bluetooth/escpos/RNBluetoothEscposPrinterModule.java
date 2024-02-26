@@ -130,6 +130,18 @@ public class RNBluetoothEscposPrinterModule extends ReactContextBaseJavaModule
 
 
     @ReactMethod
+    public void printData(String base64encodeStr, @Nullable  ReadableMap options, final Promise promise) {
+            sendDataByte(PrinterCommand.POS_S_Align(1));
+            byte[] decodedBytes = Base64.decode(base64encodeStr, Base64.DEFAULT);
+            String decodedString = new String(decodedBytes, Charset.forName("CP858"));
+            printText(decodedString,options,promise);
+            
+            sendDataByte(PrinterCommand.POS_Set_PrtAndFeedPaper(50));
+            // sendDataByte(PrinterCommand.POS_Set_Cut(1));
+            sendDataByte(PrinterCommand.POS_Set_PrtInit());
+    }
+
+    @ReactMethod
     public void printText(String text, @Nullable  ReadableMap options, final Promise promise) {
         try {
             String encoding = "GBK";
