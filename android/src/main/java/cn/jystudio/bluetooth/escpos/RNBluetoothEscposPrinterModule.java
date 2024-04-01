@@ -16,6 +16,8 @@ import com.google.zxing.EncodeHintType;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 import javax.annotation.Nullable;
 import java.nio.charset.Charset;
@@ -360,6 +362,38 @@ public class RNBluetoothEscposPrinterModule extends ReactContextBaseJavaModule
     }
 
     @ReactMethod
+    public void getPrintPic(String base64encodeStr, @Nullable ReadableMap options, Promise promise)
+    {
+        int width = 0;
+        int height = 20;
+        int leftPadding = 0;
+
+        if(options!=null){
+            width = options.hasKey("width") ? options.getInt("width") : 0;
+            leftPadding = options.hasKey("left") ? options.getInt("left") : 0;
+            height = options.hasKey("height") ? options.getInt("height") : 20;
+        }
+
+        //cannot larger then devicesWith;
+        if(width > deviceWidth || width == 0){
+            width = deviceWidth;
+        }
+
+        byte[] bytes = Base64.decode(base64encodeStr, Base64.DEFAULT);
+        Bitmap mBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        int nMode = 0;
+        if (mBitmap != null) {
+            
+            byte[] data = PrintPicture.POS_PrintBMP(mBitmap, width, nMode, leftPadding);
+            
+            byte[] combinedBytes = combineByteArrays(Command.ESC_Init, Command.LF, data, PrinterCommand.POS_Set_PrtAndFeedPaper(height),PrinterCommand.POS_Set_Cut(1), PrinterCommand.POS_Set_PrtInit());
+            String resultBase64 = Base64.encodeToString(combinedBytes, Base64.DEFAULT);
+            promise.resolve(resultBase64);
+        }
+        promise.resolve(null);
+    }
+
+    @ReactMethod
     public void cutLine(int line,final Promise promise) {
         if(sendDataByte(PrinterCommand.POS_Set_Cut(line))){
             promise.resolve(null);
@@ -453,7 +487,19 @@ public class RNBluetoothEscposPrinterModule extends ReactContextBaseJavaModule
         sendDataByte(command);
     }
 
-   
+   public byte[] combineByteArrays(byte[]... arrays) {
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    try {
+        for (byte[] array : arrays) {
+            outputStream.write(array);
+        }
+    } catch (IOException e) {
+        // Handle exception
+        e.printStackTrace();
+    }
+    return outputStream.toByteArray();
+}
+
     private boolean sendDataByte(byte[] data) {
         if (data==null || mService.getState() != BluetoothService.STATE_CONNECTED) {
             return false;
